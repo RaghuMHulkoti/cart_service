@@ -24,6 +24,9 @@ spring:
     default-schema: CART
 
 server:
+  tomcat:
+    mbeanregistry:
+      enabled: true
   port: ${SERVER_PORT:8084}
 
 cart:
@@ -57,10 +60,22 @@ springdoc:
   show-actuator: false
 
 management:
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        http.client.requests: true
+    data:
+      repository:
+        autotime:
+          enabled: true
+          percentiles-histogram: true
   endpoints:
     web:
       exposure:
-        include: health,metrics
+        include: health,metrics,prometheus
   endpoint:
     health:
       probes:

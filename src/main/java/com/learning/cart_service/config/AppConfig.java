@@ -24,6 +24,7 @@ import com.learning.cart_service.gateway.SupplierOfferGateway;
 import com.learning.cart_service.gateway.client.InventoryGatewayImpl;
 import com.learning.cart_service.gateway.client.ProductGatewayImpl;
 import com.learning.cart_service.gateway.client.SupplierOfferGatewayImpl;
+import io.micrometer.observation.ObservationRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -177,32 +178,36 @@ public class AppConfig {
 
     @Bean
     public RestClient productRestClient(
+            ObservationRegistry observationRegistry,
             @Value("${product-service.base-url}") String baseUrl,
             @Value("${product-service.connect-timeout}") Duration connectTimeout,
             @Value("${product-service.read-timeout}") Duration readTimeout) {
-        return restClient(baseUrl, connectTimeout, readTimeout);
+        return restClient(observationRegistry, baseUrl, connectTimeout, readTimeout);
     }
 
     @Bean
     public RestClient supplierRestClient(
+            ObservationRegistry observationRegistry,
             @Value("${supplier-service.base-url}") String baseUrl,
             @Value("${supplier-service.connect-timeout}") Duration connectTimeout,
             @Value("${supplier-service.read-timeout}") Duration readTimeout) {
-        return restClient(baseUrl, connectTimeout, readTimeout);
+        return restClient(observationRegistry, baseUrl, connectTimeout, readTimeout);
     }
 
     @Bean
     public RestClient inventoryRestClient(
+            ObservationRegistry observationRegistry,
             @Value("${inventory-service.base-url}") String baseUrl,
             @Value("${inventory-service.connect-timeout}") Duration connectTimeout,
             @Value("${inventory-service.read-timeout}") Duration readTimeout) {
-        return restClient(baseUrl, connectTimeout, readTimeout);
+        return restClient(observationRegistry, baseUrl, connectTimeout, readTimeout);
     }
 
-    private static RestClient restClient(String baseUrl, Duration connectTimeout, Duration readTimeout) {
+    /** Built from Boot's RestClient.Builder so every call is timed as http.client.requests. */
+    private static RestClient restClient(ObservationRegistry observationRegistry, String baseUrl, Duration connectTimeout, Duration readTimeout) {
         var requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(connectTimeout);
         requestFactory.setReadTimeout(readTimeout);
-        return RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory).build();
+        return RestClient.builder().observationRegistry(observationRegistry).baseUrl(baseUrl).requestFactory(requestFactory).build();
     }
 }
