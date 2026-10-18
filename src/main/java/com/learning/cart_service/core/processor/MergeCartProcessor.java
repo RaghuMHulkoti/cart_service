@@ -1,19 +1,8 @@
 package com.learning.cart_service.core.processor;
 
-import com.learning.cart_service.core.domain.CartView;
-import com.learning.cart_service.core.usecase.GetCartUsecase;
-import com.learning.cart_service.core.usecase.MergeCartUsecase;
+import com.learning.cart_service.core.usecase.*;
 
-import java.util.List;
-import java.util.UUID;
-
-public class MergeCartProcessor implements Processor<MergeCartProcessor.Request, MergeCartProcessor.Response> {
-
-    public record Request(UUID userId, List<MergeCartUsecase.Entry> entries) implements ProcessorRequest {
-    }
-
-    public record Response(CartView cart, List<MergeCartUsecase.EntryResult> results) implements ProcessorResponse {
-    }
+public class MergeCartProcessor implements Processor<MergeCartProcessorRequest, MergeCartProcessorResponse> {
 
     private final MergeCartUsecase mergeCartUsecase;
     private final GetCartUsecase getCartUsecase;
@@ -24,9 +13,8 @@ public class MergeCartProcessor implements Processor<MergeCartProcessor.Request,
     }
 
     @Override
-    public Response process(Request request) {
-        var merged = mergeCartUsecase.execute(new MergeCartUsecase.Request(request.userId(), request.entries()));
-        var cart = getCartUsecase.execute(new GetCartUsecase.Request(request.userId())).cart();
-        return new Response(cart, merged.results());
+    public MergeCartProcessorResponse process(MergeCartProcessorRequest request) {
+        var merged = mergeCartUsecase.execute(new MergeCartUsecaseRequest(request.getUserId(), request.getEntries()));
+        return new MergeCartProcessorResponse(getCartUsecase.execute(new GetCartUsecaseRequest(request.getUserId())).getCart(), merged.getResults());
     }
 }

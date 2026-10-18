@@ -1,6 +1,7 @@
-package com.learning.cart_service.core.service;
+package com.learning.cart_service.core.service.catalog;
 
 import com.learning.cart_service.core.domain.Offer;
+import com.learning.cart_service.core.service.Service;
 import com.learning.cart_service.core.domain.ProductInfo;
 import com.learning.cart_service.core.domain.ProductSnapshot;
 import com.learning.cart_service.exception.BusinessRuleViolationException;
@@ -23,7 +24,7 @@ import java.util.concurrent.Executor;
  * Read-side lookups against Product, Supplier and Inventory plus the offer-selection rule. The cart owns
  * none of this data, so nothing here is persisted.
  */
-public class CatalogService {
+public class CatalogService implements Service<CatalogServiceRequest, CatalogServiceResponse> {
 
     private final ProductGateway productGateway;
     private final SupplierOfferGateway supplierOfferGateway;
@@ -38,7 +39,22 @@ public class CatalogService {
         this.executor = executor;
     }
 
-    public ProductInfo requireSellableProduct(UUID productId) {
+    @Override
+    public CatalogServiceResponse execute(CatalogServiceRequest request) {
+        var response = CatalogServiceResponse.builder();
+        switch (request.getOperation()) {
+            case REQUIRE_SELLABLE_PRODUCT -> response.product(requireSellableProduct(request.getProductId()));
+            case SNAPSHOT -> response.snapshot(snapshot(request.getProductId()));
+            case SNAPSHOT_OR_DEGRADE -> response.snapshot(snapshotOrDegrade(request.getProductId()));
+            case SNAPSHOTS_OR_DEGRADE -> response.snapshots(snapshotsOrDegrade(request.getProductIds()));
+            case PRODUCTS_OR_NULL -> response.products(productsOrNull(request.getProductIds()));
+            case CHOOSE_OFFER -> response.offer(chooseOffer(request.getSnapshot(),
+                    request.getPreferredSupplierId(), request.getQuantity()));
+        }
+        return response.build();
+    }
+
+    private ProductInfo requireSellableProduct(UUID productId) {
         var product = productGateway.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
         if (!product.isActive()) {
             throw new BusinessRuleViolationException("PRODUCT_UNAVAILABLE",
@@ -48,14 +64,14 @@ public class CatalogService {
     }
 
     /** Strict lookup for writes: any downstream failure propagates as 503. */
-    public ProductSnapshot snapshot(UUID productId) {
+    private ProductSnapshot snapshot(UUID productId) {
         var offers = supplierOfferGateway.findActiveOffers(productId).stream().filter(Offer::isActive).toList();
         var available = inventoryGateway.availableByOffer(productId, offers.stream().map(Offer::offerId).toList());
         return new ProductSnapshot(offers, true, available, true);
     }
 
     /** Lenient lookup for render: a failing service marks its part unknown instead of throwing. */
-    public ProductSnapshot snapshotOrDegrade(UUID productId) {
+    private ProductSnapshot snapshotOrDegrade(UUID productId) {
         List<Offer> offers;
         try {
             offers = supplierOfferGateway.findActiveOffers(productId).stream().filter(Offer::isActive).toList();
@@ -71,7 +87,7 @@ public class CatalogService {
     }
 
     /** Snapshots for several products fetched in parallel. */
-    public Map<UUID, ProductSnapshot> snapshotsOrDegrade(Collection<UUID> productIds) {
+    private Map<UUID, ProductSnapshot> snapshotsOrDegrade(Collection<UUID> productIds) {
         Map<UUID, CompletableFuture<ProductSnapshot>> futures = new HashMap<>();
         productIds.forEach(id -> futures.put(id, CompletableFuture.supplyAsync(() -> snapshotOrDegrade(id), executor)));
         Map<UUID, ProductSnapshot> result = new HashMap<>();
@@ -83,7 +99,7 @@ public class CatalogService {
      * Product lookup for render. Returns null when Product Service did not answer, which must not be
      * confused with a product that is missing from the result because it was deleted.
      */
-    public Map<UUID, ProductInfo> productsOrNull(Collection<UUID> productIds) {
+    private Map<UUID, ProductInfo> productsOrNull(Collection<UUID> productIds) {
         try {
             return productGateway.findByIds(productIds);
         } catch (DependencyUnavailableException e) {
@@ -94,7 +110,7 @@ public class CatalogService {
     /**
      * Cheapest active offer with at least {@code quantity} in stock, optionally restricted to one supplier.
      */
-    public Offer chooseOffer(ProductSnapshot snapshot, UUID preferredSupplierId, int quantity) {
+    private Offer chooseOffer(ProductSnapshot snapshot, UUID preferredSupplierId, int quantity) {
         var candidates = snapshot.offers().stream()
                 .filter(o -> preferredSupplierId == null || preferredSupplierId.equals(o.supplierId()))
                 .sorted(Comparator.comparing(Offer::price))

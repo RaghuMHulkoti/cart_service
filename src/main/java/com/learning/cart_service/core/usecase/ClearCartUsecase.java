@@ -1,16 +1,9 @@
 package com.learning.cart_service.core.usecase;
 
-import com.learning.cart_service.core.service.CartService;
+import com.learning.cart_service.core.service.cart.CartService;
+import com.learning.cart_service.core.service.cart.CartServiceRequest;
 
-import java.util.UUID;
-
-public class ClearCartUsecase implements Usecase<ClearCartUsecase.Request, ClearCartUsecase.Response> {
-
-    public record Request(UUID userId) implements UsecaseRequest {
-    }
-
-    public record Response() implements UsecaseResponse {
-    }
+public class ClearCartUsecase implements Usecase<ClearCartUsecaseRequest, ClearCartUsecaseResponse> {
 
     private final CartService cartService;
 
@@ -19,8 +12,11 @@ public class ClearCartUsecase implements Usecase<ClearCartUsecase.Request, Clear
     }
 
     @Override
-    public Response execute(Request request) {
-        cartService.clear(request.userId());
-        return new Response();
+    public ClearCartUsecaseResponse execute(ClearCartUsecaseRequest request) {
+        cartService.execute(CartServiceRequest.builder()
+                .operation(CartServiceRequest.Operation.CLEAR)
+                .userId(request.getUserId())
+                .build());
+        return new ClearCartUsecaseResponse();
     }
 }

@@ -5,13 +5,13 @@ import com.learning.cart_service.core.domain.CartItem;
 import com.learning.cart_service.core.domain.LineAvailability;
 import com.learning.cart_service.core.domain.Offer;
 import com.learning.cart_service.core.domain.ProductInfo;
-import com.learning.cart_service.core.service.CartService;
-import com.learning.cart_service.core.service.CatalogService;
-import com.learning.cart_service.core.usecase.AddCartItemUsecase;
-import com.learning.cart_service.core.usecase.GetCartUsecase;
-import com.learning.cart_service.core.usecase.MergeCartUsecase;
-import com.learning.cart_service.core.usecase.RemoveCartItemUsecase;
-import com.learning.cart_service.core.usecase.UpdateCartItemUsecase;
+import com.learning.cart_service.core.service.cart.CartService;
+import com.learning.cart_service.core.service.catalog.CatalogService;
+import com.learning.cart_service.core.usecase.*;
+import com.learning.cart_service.core.usecase.*;
+import com.learning.cart_service.core.usecase.*;
+import com.learning.cart_service.core.usecase.*;
+import com.learning.cart_service.core.usecase.*;
 import com.learning.cart_service.exception.BusinessRuleViolationException;
 import com.learning.cart_service.exception.CartItemNotFoundException;
 import com.learning.cart_service.exception.DependencyUnavailableException;
@@ -102,7 +102,7 @@ class CartFlowTest {
 
     @Test
     void addPicksCheapestInStockOffer() {
-        var item = add(2, null).item();
+        var item = add(2, null).getItem();
 
         assertThat(item.offerId()).isEqualTo(offerB.offerId());
         assertThat(item.unitPrice()).isEqualByComparingTo("90.00");
@@ -112,12 +112,12 @@ class CartFlowTest {
     void addSkipsCheapestOfferWhenItCannotCoverQuantity() {
         stock.put(offerB.offerId(), 1);
 
-        assertThat(add(2, null).item().offerId()).isEqualTo(offerA.offerId());
+        assertThat(add(2, null).getItem().offerId()).isEqualTo(offerA.offerId());
     }
 
     @Test
     void addHonoursPreferredSupplier() {
-        assertThat(add(1, supplierA).item().offerId()).isEqualTo(offerA.offerId());
+        assertThat(add(1, supplierA).getItem().offerId()).isEqualTo(offerA.offerId());
     }
 
     @Test
@@ -153,7 +153,7 @@ class CartFlowTest {
 
     @Test
     void addRejectsUnknownAndInactiveProducts() {
-        assertThatThrownBy(() -> add.execute(new AddCartItemUsecase.Request(user, UUID.randomUUID(), 1, null, false)))
+        assertThatThrownBy(() -> add.execute(new AddCartItemUsecaseRequest(user, UUID.randomUUID(), 1, null, false)))
                 .isInstanceOf(ProductNotFoundException.class);
 
         products.put(product, new ProductInfo(product, "Phone", "DELISTED"));
@@ -170,7 +170,7 @@ class CartFlowTest {
         for (int i = 0; i < 2; i++) {
             var other = newProduct("5.00");
             try {
-                add.execute(new AddCartItemUsecase.Request(user, other, 1, null, false));
+                add.execute(new AddCartItemUsecaseRequest(user, other, 1, null, false));
             } catch (BusinessRuleViolationException e) {
                 assertThat(e.getErrorCode()).isEqualTo("CART_FULL");
                 return;
@@ -186,7 +186,7 @@ class CartFlowTest {
         offers.put(other, List.of(new Offer(UUID.randomUUID(), supplierA, other, new BigDecimal("5"), "USD", true)));
         stock.put(offers.get(other).getFirst().offerId(), 5);
 
-        assertThatThrownBy(() -> add.execute(new AddCartItemUsecase.Request(user, other, 1, null, false)))
+        assertThatThrownBy(() -> add.execute(new AddCartItemUsecaseRequest(user, other, 1, null, false)))
                 .isInstanceOfSatisfying(BusinessRuleViolationException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo("CURRENCY_MISMATCH"));
     }
@@ -201,33 +201,33 @@ class CartFlowTest {
 
     @Test
     void updateRaisesWithStockCheckAndLowersWithoutOne() {
-        var itemId = add(2, null).item().offerId();
+        var itemId = add(2, null).getItem().offerId();
 
-        update.execute(new UpdateCartItemUsecase.Request(user, itemId, 5));
+        update.execute(new UpdateCartItemUsecaseRequest(user, itemId, 5));
         assertThat(carts.items.get(itemId).quantity()).isEqualTo(5);
 
-        assertThatThrownBy(() -> update.execute(new UpdateCartItemUsecase.Request(user, itemId, 6)))
+        assertThatThrownBy(() -> update.execute(new UpdateCartItemUsecaseRequest(user, itemId, 6)))
                 .isInstanceOfSatisfying(BusinessRuleViolationException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo("INSUFFICIENT_STOCK"));
 
         stock.put(itemId, 0);
         inventoryDown = true;
-        update.execute(new UpdateCartItemUsecase.Request(user, itemId, 1));
+        update.execute(new UpdateCartItemUsecaseRequest(user, itemId, 1));
         assertThat(carts.items.get(itemId).quantity()).isEqualTo(1);
     }
 
     @Test
     void updateUnknownItemIs404() {
-        assertThatThrownBy(() -> update.execute(new UpdateCartItemUsecase.Request(user, UUID.randomUUID(), 1)))
+        assertThatThrownBy(() -> update.execute(new UpdateCartItemUsecaseRequest(user, UUID.randomUUID(), 1)))
                 .isInstanceOf(CartItemNotFoundException.class);
     }
 
     @Test
     void removeIsIdempotent() {
-        var itemId = add(1, null).item().offerId();
+        var itemId = add(1, null).getItem().offerId();
 
-        remove.execute(new RemoveCartItemUsecase.Request(user, itemId));
-        remove.execute(new RemoveCartItemUsecase.Request(user, itemId));
+        remove.execute(new RemoveCartItemUsecaseRequest(user, itemId));
+        remove.execute(new RemoveCartItemUsecaseRequest(user, itemId));
 
         assertThat(carts.items).isEmpty();
     }
@@ -237,7 +237,7 @@ class CartFlowTest {
         add(2, null);
         offers.put(product, List.of(offerA, offer(supplierB, product, "95.00", offerB.offerId())));
 
-        var cart = get.execute(new GetCartUsecase.Request(user)).cart();
+        var cart = get.execute(new GetCartUsecaseRequest(user)).getCart();
 
         var line = cart.lines().getFirst();
         assertThat(line.unitPrice()).isEqualByComparingTo("95.00");
@@ -249,7 +249,7 @@ class CartFlowTest {
 
     @Test
     void renderReportsAvailabilityStates() {
-        var itemId = add(3, null).item().offerId();
+        var itemId = add(3, null).getItem().offerId();
 
         stock.put(itemId, 2);
         assertThat(line().availability()).isEqualTo(LineAvailability.INSUFFICIENT_STOCK);
@@ -257,7 +257,7 @@ class CartFlowTest {
 
         stock.put(itemId, 0);
         assertThat(line().availability()).isEqualTo(LineAvailability.OUT_OF_STOCK);
-        assertThat(get.execute(new GetCartUsecase.Request(user)).cart().checkoutReady()).isFalse();
+        assertThat(get.execute(new GetCartUsecaseRequest(user)).getCart().checkoutReady()).isFalse();
     }
 
     @Test
@@ -269,7 +269,7 @@ class CartFlowTest {
 
         offers.put(product, List.of(offerA, offerB));
         products.remove(product);
-        var cart = get.execute(new GetCartUsecase.Request(user)).cart();
+        var cart = get.execute(new GetCartUsecaseRequest(user)).getCart();
         assertThat(cart.lines().getFirst().availability()).isEqualTo(LineAvailability.UNAVAILABLE);
         assertThat(cart.subtotal()).isEqualByComparingTo("0");
     }
@@ -281,7 +281,7 @@ class CartFlowTest {
         inventoryDown = true;
         assertThat(line().availability()).isEqualTo(LineAvailability.UNKNOWN);
         assertThat(line().unitPrice()).isEqualByComparingTo("90.00");
-        assertThat(get.execute(new GetCartUsecase.Request(user)).cart().checkoutReady()).isFalse();
+        assertThat(get.execute(new GetCartUsecaseRequest(user)).getCart().checkoutReady()).isFalse();
 
         inventoryDown = false;
         supplierDown = true;
@@ -291,7 +291,7 @@ class CartFlowTest {
 
     @Test
     void renderOfEmptyCart() {
-        var cart = get.execute(new GetCartUsecase.Request(user)).cart();
+        var cart = get.execute(new GetCartUsecaseRequest(user)).getCart();
 
         assertThat(cart.lines()).isEmpty();
         assertThat(cart.checkoutReady()).isFalse();
@@ -303,27 +303,27 @@ class CartFlowTest {
         add(2, null);
         var missing = UUID.randomUUID();
         var entries = List.of(
-                new MergeCartUsecase.Entry(product, 4, null),
-                new MergeCartUsecase.Entry(missing, 1, null),
-                new MergeCartUsecase.Entry(product, 99, null));
+                new MergeCartEntry(product, 4, null),
+                new MergeCartEntry(missing, 1, null),
+                new MergeCartEntry(product, 99, null));
 
-        var first = merge.execute(new MergeCartUsecase.Request(user, entries)).results();
-        var second = merge.execute(new MergeCartUsecase.Request(user, entries)).results();
+        var first = merge.execute(new MergeCartUsecaseRequest(user, entries)).getResults();
+        var second = merge.execute(new MergeCartUsecaseRequest(user, entries)).getResults();
 
-        assertThat(first).extracting(MergeCartUsecase.EntryResult::merged).containsExactly(true, false, false);
-        assertThat(first.get(1).errorCode()).isEqualTo("NOT_FOUND");
-        assertThat(second).isEqualTo(first);
+        assertThat(first).extracting(MergeCartEntryResult::isMerged).containsExactly(true, false, false);
+        assertThat(first.get(1).getErrorCode()).isEqualTo("NOT_FOUND");
+        assertThat(second).usingRecursiveComparison().isEqualTo(first);
         // first entry: max(existing 2, guest 4) = 4. third: 99 is capped to the line limit of 10, which stock (5) can't cover
         assertThat(carts.items.get(offerB.offerId()).quantity()).isEqualTo(4);
-        assertThat(first.get(2).errorCode()).isEqualTo("INSUFFICIENT_STOCK");
+        assertThat(first.get(2).getErrorCode()).isEqualTo("INSUFFICIENT_STOCK");
     }
 
-    private AddCartItemUsecase.Response add(int quantity, UUID supplier) {
-        return add.execute(new AddCartItemUsecase.Request(user, product, quantity, supplier, false));
+    private AddCartItemUsecaseResponse add(int quantity, UUID supplier) {
+        return add.execute(new AddCartItemUsecaseRequest(user, product, quantity, supplier, false));
     }
 
     private com.learning.cart_service.core.domain.CartLine line() {
-        return get.execute(new GetCartUsecase.Request(user)).cart().lines().getFirst();
+        return get.execute(new GetCartUsecaseRequest(user)).getCart().lines().getFirst();
     }
 
     private UUID newProduct(String price) {

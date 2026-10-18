@@ -1,13 +1,8 @@
 package com.learning.cart_service.web;
 
+import com.learning.cart_service.core.processor.*;
 import com.learning.cart_service.common.StatusCode;
-import com.learning.cart_service.core.processor.AddCartItemProcessor;
-import com.learning.cart_service.core.processor.ClearCartProcessor;
-import com.learning.cart_service.core.processor.GetCartProcessor;
-import com.learning.cart_service.core.processor.MergeCartProcessor;
-import com.learning.cart_service.core.processor.RemoveCartItemProcessor;
-import com.learning.cart_service.core.processor.UpdateCartItemProcessor;
-import com.learning.cart_service.core.usecase.MergeCartUsecase;
+import com.learning.cart_service.core.usecase.MergeCartEntry;
 import com.learning.cart_service.web.request.AddCartItemRequest;
 import com.learning.cart_service.web.request.MergeCartRequest;
 import com.learning.cart_service.web.request.UpdateCartItemRequest;
@@ -65,8 +60,8 @@ public class CartController {
     @Operation(summary = "Render the cart with live pricing and availability")
     public ResponseEntity<Response<CartResponse>> getCart(
             @Parameter(hidden = true) @RequestHeader(USER_HEADER) UUID userId) {
-        var result = getCartProcessor.process(new GetCartProcessor.Request(userId));
-        return ok("Cart retrieved successfully", CartResponseMapper.toResponse(result.cart()));
+        var result = getCartProcessor.process(new GetCartProcessorRequest(userId));
+        return ok("Cart retrieved successfully", CartResponseMapper.toResponse(result.getCart()));
     }
 
     @PostMapping("/items")
@@ -74,9 +69,9 @@ public class CartController {
     public ResponseEntity<Response<CartResponse>> addItem(
             @Parameter(hidden = true) @RequestHeader(USER_HEADER) UUID userId,
             @Valid @RequestBody AddCartItemRequest request) {
-        var result = addCartItemProcessor.process(new AddCartItemProcessor.Request(
-                userId, request.productId(), request.quantity(), request.preferredSupplierId()));
-        return ok("Item added to cart", CartResponseMapper.toResponse(result.cart()));
+        var result = addCartItemProcessor.process(new AddCartItemProcessorRequest(
+                userId, request.getProductId(), request.getQuantity(), request.getPreferredSupplierId()));
+        return ok("Item added to cart", CartResponseMapper.toResponse(result.getCart()));
     }
 
     @PatchMapping("/items/{itemId}")
@@ -86,8 +81,8 @@ public class CartController {
             @PathVariable UUID itemId,
             @Valid @RequestBody UpdateCartItemRequest request) {
         var result = updateCartItemProcessor.process(
-                new UpdateCartItemProcessor.Request(userId, itemId, request.quantity()));
-        return ok("Cart item updated", CartResponseMapper.toResponse(result.cart()));
+                new UpdateCartItemProcessorRequest(userId, itemId, request.getQuantity()));
+        return ok("Cart item updated", CartResponseMapper.toResponse(result.getCart()));
     }
 
     @DeleteMapping("/items/{itemId}")
@@ -95,14 +90,14 @@ public class CartController {
     public ResponseEntity<Response<CartResponse>> removeItem(
             @Parameter(hidden = true) @RequestHeader(USER_HEADER) UUID userId,
             @PathVariable UUID itemId) {
-        var result = removeCartItemProcessor.process(new RemoveCartItemProcessor.Request(userId, itemId));
-        return ok("Cart item removed", CartResponseMapper.toResponse(result.cart()));
+        var result = removeCartItemProcessor.process(new RemoveCartItemProcessorRequest(userId, itemId));
+        return ok("Cart item removed", CartResponseMapper.toResponse(result.getCart()));
     }
 
     @DeleteMapping
     @Operation(summary = "Clear the cart")
     public ResponseEntity<Void> clear(@Parameter(hidden = true) @RequestHeader(USER_HEADER) UUID userId) {
-        clearCartProcessor.process(new ClearCartProcessor.Request(userId));
+        clearCartProcessor.process(new ClearCartProcessorRequest(userId));
         return ResponseEntity.noContent().build();
     }
 
@@ -111,11 +106,11 @@ public class CartController {
     public ResponseEntity<Response<MergeCartResponse>> merge(
             @Parameter(hidden = true) @RequestHeader(USER_HEADER) UUID userId,
             @Valid @RequestBody MergeCartRequest request) {
-        var entries = request.items().stream()
-                .map(i -> new MergeCartUsecase.Entry(i.productId(), i.quantity(), i.preferredSupplierId()))
+        var entries = request.getItems().stream()
+                .map(i -> new MergeCartEntry(i.getProductId(), i.getQuantity(), i.getPreferredSupplierId()))
                 .toList();
-        var result = mergeCartProcessor.process(new MergeCartProcessor.Request(userId, entries));
-        return ok("Cart merged", CartResponseMapper.toResponse(result.cart(), result.results()));
+        var result = mergeCartProcessor.process(new MergeCartProcessorRequest(userId, entries));
+        return ok("Cart merged", CartResponseMapper.toResponse(result.getCart(), result.getResults()));
     }
 
     private static <T> ResponseEntity<Response<T>> ok(String message, T body) {

@@ -1,17 +1,10 @@
 package com.learning.cart_service.core.usecase;
 
-import com.learning.cart_service.core.service.CartService;
-
-import java.util.UUID;
+import com.learning.cart_service.core.service.cart.CartService;
+import com.learning.cart_service.core.service.cart.CartServiceRequest;
 
 /** Idempotent: removing a line that is already gone succeeds. */
-public class RemoveCartItemUsecase implements Usecase<RemoveCartItemUsecase.Request, RemoveCartItemUsecase.Response> {
-
-    public record Request(UUID userId, UUID itemId) implements UsecaseRequest {
-    }
-
-    public record Response() implements UsecaseResponse {
-    }
+public class RemoveCartItemUsecase implements Usecase<RemoveCartItemUsecaseRequest, RemoveCartItemUsecaseResponse> {
 
     private final CartService cartService;
 
@@ -20,8 +13,12 @@ public class RemoveCartItemUsecase implements Usecase<RemoveCartItemUsecase.Requ
     }
 
     @Override
-    public Response execute(Request request) {
-        cartService.remove(request.userId(), request.itemId());
-        return new Response();
+    public RemoveCartItemUsecaseResponse execute(RemoveCartItemUsecaseRequest request) {
+        cartService.execute(CartServiceRequest.builder()
+                .operation(CartServiceRequest.Operation.REMOVE)
+                .userId(request.getUserId())
+                .itemId(request.getItemId())
+                .build());
+        return new RemoveCartItemUsecaseResponse();
     }
 }

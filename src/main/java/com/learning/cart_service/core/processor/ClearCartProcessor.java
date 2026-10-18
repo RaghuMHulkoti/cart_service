@@ -1,16 +1,9 @@
 package com.learning.cart_service.core.processor;
 
 import com.learning.cart_service.core.usecase.ClearCartUsecase;
+import com.learning.cart_service.core.usecase.ClearCartUsecaseRequest;
 
-import java.util.UUID;
-
-public class ClearCartProcessor implements Processor<ClearCartProcessor.Request, ClearCartProcessor.Response> {
-
-    public record Request(UUID userId) implements ProcessorRequest {
-    }
-
-    public record Response() implements ProcessorResponse {
-    }
+public class ClearCartProcessor implements Processor<ClearCartProcessorRequest, ClearCartProcessorResponse> {
 
     private final ClearCartUsecase clearCartUsecase;
 
@@ -19,8 +12,8 @@ public class ClearCartProcessor implements Processor<ClearCartProcessor.Request,
     }
 
     @Override
-    public Response process(Request request) {
-        clearCartUsecase.execute(new ClearCartUsecase.Request(request.userId()));
-        return new Response();
+    public ClearCartProcessorResponse process(ClearCartProcessorRequest request) {
+        clearCartUsecase.execute(new ClearCartUsecaseRequest(request.getUserId()));
+        return new ClearCartProcessorResponse();
     }
 }

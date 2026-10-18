@@ -6,27 +6,13 @@ import com.learning.cart_service.exception.ProductNotFoundException;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Merges a guest cart into the user's cart on login. Partial success: a line that cannot be merged is
  * reported and the rest still go through. Each line uses {@link AddCartItemUsecase} in merge mode, so the
  * whole call can be retried safely.
  */
-public class MergeCartUsecase implements Usecase<MergeCartUsecase.Request, MergeCartUsecase.Response> {
-
-    public record Entry(UUID productId, int quantity, UUID preferredSupplierId) {
-    }
-
-    public record Request(UUID userId, List<Entry> entries) implements UsecaseRequest {
-    }
-
-    /** {@code errorCode} is null when the entry was merged. */
-    public record EntryResult(UUID productId, boolean merged, String errorCode, String message) {
-    }
-
-    public record Response(List<EntryResult> results) implements UsecaseResponse {
-    }
+public class MergeCartUsecase implements Usecase<MergeCartUsecaseRequest, MergeCartUsecaseResponse> {
 
     private final AddCartItemUsecase addCartItemUsecase;
 
@@ -35,21 +21,22 @@ public class MergeCartUsecase implements Usecase<MergeCartUsecase.Request, Merge
     }
 
     @Override
-    public Response execute(Request request) {
-        List<EntryResult> results = new ArrayList<>();
-        for (var entry : request.entries()) {
+    public MergeCartUsecaseResponse execute(MergeCartUsecaseRequest request) {
+        List<MergeCartEntryResult> results = new ArrayList<>();
+        for (var entry : request.getEntries()) {
             try {
-                addCartItemUsecase.execute(new AddCartItemUsecase.Request(request.userId(), entry.productId(),
-                        entry.quantity(), entry.preferredSupplierId(), true));
-                results.add(new EntryResult(entry.productId(), true, null, null));
+                addCartItemUsecase.execute(new AddCartItemUsecaseRequest(request.getUserId(), entry.getProductId(),
+                        entry.getQuantity(), entry.getPreferredSupplierId(), true));
+                results.add(new MergeCartEntryResult(entry.getProductId(), true, null, null));
             } catch (BusinessRuleViolationException e) {
-                results.add(new EntryResult(entry.productId(), false, e.getErrorCode(), e.getMessage()));
+                results.add(new MergeCartEntryResult(entry.getProductId(), false, e.getErrorCode(), e.getMessage()));
             } catch (ProductNotFoundException e) {
-                results.add(new EntryResult(entry.productId(), false, "NOT_FOUND", e.getMessage()));
+                results.add(new MergeCartEntryResult(entry.getProductId(), false, "NOT_FOUND", e.getMessage()));
             } catch (DependencyUnavailableException e) {
-                results.add(new EntryResult(entry.productId(), false, "DEPENDENCY_UNAVAILABLE", e.getMessage()));
+                results.add(new MergeCartEntryResult(entry.getProductId(), false, "DEPENDENCY_UNAVAILABLE",
+                        e.getMessage()));
             }
         }
-        return new Response(results);
+        return new MergeCartUsecaseResponse(results);
     }
 }

@@ -1,8 +1,19 @@
 package com.learning.cart_service.web.response;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 import java.time.OffsetDateTime;
 import java.util.Map;
 
-public record ErrorResponse(String errorCode, String message, int status, OffsetDateTime timestamp,
-                            Map<String, String> details) {
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+public class ErrorResponse {
+    private String errorCode;
+    private String message;
+    private int status;
+    private OffsetDateTime timestamp;
+    private Map<String, String> details;
 }

@@ -2,12 +2,13 @@ package com.learning.cart_service.core.usecase;
 
 import com.learning.cart_service.core.domain.CartItem;
 import com.learning.cart_service.core.domain.Offer;
+import com.learning.cart_service.core.service.cart.CartService;
+import com.learning.cart_service.core.service.cart.CartServiceRequest;
+import com.learning.cart_service.core.service.catalog.CatalogService;
+import com.learning.cart_service.core.service.catalog.CatalogServiceRequest;
 import com.learning.cart_service.exception.BusinessRuleViolationException;
-import com.learning.cart_service.core.service.CartService;
-import com.learning.cart_service.core.service.CatalogService;
 
 import java.time.Clock;
-import java.util.UUID;
 
 /**
  * Adds a product to the cart (TDD §12.5). A cart keeps one line per product:
@@ -19,14 +20,7 @@ import java.util.UUID;
  * In merge mode (guest cart on login) an existing line becomes max(existing, requested) and over-limit
  * quantities are capped, so replaying the same merge changes nothing.
  */
-public class AddCartItemUsecase implements Usecase<AddCartItemUsecase.Request, AddCartItemUsecase.Response> {
-
-    public record Request(UUID userId, UUID productId, int quantity, UUID preferredSupplierId, boolean merge)
-            implements UsecaseRequest {
-    }
-
-    public record Response(CartItem item) implements UsecaseResponse {
-    }
+public class AddCartItemUsecase implements Usecase<AddCartItemUsecaseRequest, AddCartItemUsecaseResponse> {
 
     private final CartService cartService;
     private final CatalogService catalogService;
@@ -39,25 +33,34 @@ public class AddCartItemUsecase implements Usecase<AddCartItemUsecase.Request, A
     }
 
     @Override
-    public Response execute(Request request) {
-        catalogService.requireSellableProduct(request.productId());
+    public AddCartItemUsecaseResponse execute(AddCartItemUsecaseRequest request) {
+        catalogService.execute(CatalogServiceRequest.builder()
+                .operation(CatalogServiceRequest.Operation.REQUIRE_SELLABLE_PRODUCT)
+                .productId(request.getProductId())
+                .build());
 
-        var items = cartService.items(request.userId());
-        var existing = items.stream().filter(i -> i.productId().equals(request.productId())).findFirst();
-        var otherLines = items.stream().filter(i -> !i.productId().equals(request.productId())).toList();
-        var snapshot = catalogService.snapshot(request.productId());
+        var items = cartService.execute(CartServiceRequest.builder()
+                .operation(CartServiceRequest.Operation.FIND_ALL)
+                .userId(request.getUserId())
+                .build()).getItems();
+        var existing = items.stream().filter(i -> i.productId().equals(request.getProductId())).findFirst();
+        var otherLines = items.stream().filter(i -> !i.productId().equals(request.getProductId())).toList();
+        var snapshot = catalogService.execute(CatalogServiceRequest.builder()
+                .operation(CatalogServiceRequest.Operation.SNAPSHOT)
+                .productId(request.getProductId())
+                .build()).getSnapshot();
 
         boolean sameLine = existing.isPresent()
-                && (request.preferredSupplierId() == null
-                || request.preferredSupplierId().equals(existing.get().supplierId()));
+                && (request.getPreferredSupplierId() == null
+                || request.getPreferredSupplierId().equals(existing.get().supplierId()));
 
-        int quantity = request.quantity();
+        int quantity = request.getQuantity();
         if (sameLine) {
-            quantity = request.merge()
+            quantity = request.isMerge()
                     ? Math.max(existing.get().quantity(), quantity)
                     : existing.get().quantity() + quantity;
         }
-        quantity = applyQuantityLimit(quantity, request.merge());
+        quantity = applyQuantityLimit(quantity, request.isMerge());
 
         Offer offer;
         if (sameLine) {
@@ -70,32 +73,58 @@ public class AddCartItemUsecase implements Usecase<AddCartItemUsecase.Request, A
                 throw CatalogService.stockViolation(available);
             }
         } else {
-            offer = catalogService.chooseOffer(snapshot, request.preferredSupplierId(), quantity);
+            offer = catalogService.execute(CatalogServiceRequest.builder()
+                    .operation(CatalogServiceRequest.Operation.CHOOSE_OFFER)
+                    .snapshot(snapshot)
+                    .preferredSupplierId(request.getPreferredSupplierId())
+                    .quantity(quantity)
+                    .build()).getOffer();
         }
 
-        cartService.requireSameCurrency(otherLines, offer.currency());
+        cartService.execute(CartServiceRequest.builder()
+                .operation(CartServiceRequest.Operation.REQUIRE_SAME_CURRENCY)
+                .items(otherLines)
+                .currency(offer.currency())
+                .build());
         if (existing.isEmpty()) {
-            cartService.requireRoomForNewLine(items);
+            cartService.execute(CartServiceRequest.builder()
+                    .operation(CartServiceRequest.Operation.REQUIRE_ROOM_FOR_NEW_LINE)
+                    .items(items)
+                    .build());
         }
 
         var now = clock.instant();
         CartItem item = sameLine
                 ? existing.get().withQuantity(quantity, now).withPrice(offer.price(), now)
-                : new CartItem(offer.offerId(), request.productId(), offer.supplierId(), quantity,
+                : new CartItem(offer.offerId(), request.getProductId(), offer.supplierId(), quantity,
                 offer.price(), offer.currency(), now, now);
         if (existing.isPresent() && !sameLine) {
-            cartService.replace(request.userId(), existing.get().offerId(), item);
+            cartService.execute(CartServiceRequest.builder()
+                    .operation(CartServiceRequest.Operation.REPLACE)
+                    .userId(request.getUserId())
+                    .itemId(existing.get().offerId())
+                    .item(item)
+                    .build());
         } else {
-            cartService.save(request.userId(), item);
+            cartService.execute(CartServiceRequest.builder()
+                    .operation(CartServiceRequest.Operation.SAVE)
+                    .userId(request.getUserId())
+                    .item(item)
+                    .build());
         }
-        return new Response(item);
+        return new AddCartItemUsecaseResponse(item);
     }
 
     private int applyQuantityLimit(int quantity, boolean cap) {
         if (cap) {
-            return Math.min(quantity, cartService.maxQuantityPerItem());
+            return Math.min(quantity, cartService.execute(CartServiceRequest.builder()
+                    .operation(CartServiceRequest.Operation.LIMITS)
+                    .build()).getMaxQuantityPerItem());
         }
-        cartService.requireQuantityWithinLimit(quantity);
+        cartService.execute(CartServiceRequest.builder()
+                .operation(CartServiceRequest.Operation.REQUIRE_QUANTITY_WITHIN_LIMIT)
+                .quantity(quantity)
+                .build());
         return quantity;
     }
 }

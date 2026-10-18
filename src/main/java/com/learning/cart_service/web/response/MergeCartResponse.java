@@ -1,11 +1,27 @@
 package com.learning.cart_service.web.response;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 import java.util.List;
 import java.util.UUID;
 
-public record MergeCartResponse(CartResponse cart, List<Result> results) {
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+public class MergeCartResponse {
+    private CartResponse cart;
+    private List<Result> results;
 
     /** {@code errorCode} and {@code message} are null when the entry was merged. */
-    public record Result(UUID productId, boolean merged, String errorCode, String message) {
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Result {
+        private UUID productId;
+        private boolean merged;
+        private String errorCode;
+        private String message;
     }
 }

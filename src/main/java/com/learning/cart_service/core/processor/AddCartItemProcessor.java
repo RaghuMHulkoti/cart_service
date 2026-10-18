@@ -1,19 +1,8 @@
 package com.learning.cart_service.core.processor;
 
-import com.learning.cart_service.core.domain.CartView;
-import com.learning.cart_service.core.usecase.AddCartItemUsecase;
-import com.learning.cart_service.core.usecase.GetCartUsecase;
+import com.learning.cart_service.core.usecase.*;
 
-import java.util.UUID;
-
-public class AddCartItemProcessor implements Processor<AddCartItemProcessor.Request, AddCartItemProcessor.Response> {
-
-    public record Request(UUID userId, UUID productId, int quantity, UUID preferredSupplierId)
-            implements ProcessorRequest {
-    }
-
-    public record Response(CartView cart) implements ProcessorResponse {
-    }
+public class AddCartItemProcessor implements Processor<AddCartItemProcessorRequest, AddCartItemProcessorResponse> {
 
     private final AddCartItemUsecase addCartItemUsecase;
     private final GetCartUsecase getCartUsecase;
@@ -24,9 +13,9 @@ public class AddCartItemProcessor implements Processor<AddCartItemProcessor.Requ
     }
 
     @Override
-    public Response process(Request request) {
-        addCartItemUsecase.execute(new AddCartItemUsecase.Request(request.userId(), request.productId(),
-                request.quantity(), request.preferredSupplierId(), false));
-        return new Response(getCartUsecase.execute(new GetCartUsecase.Request(request.userId())).cart());
+    public AddCartItemProcessorResponse process(AddCartItemProcessorRequest request) {
+        addCartItemUsecase.execute(new AddCartItemUsecaseRequest(request.getUserId(), request.getProductId(),
+                request.getQuantity(), request.getPreferredSupplierId(), false));
+        return new AddCartItemProcessorResponse(getCartUsecase.execute(new GetCartUsecaseRequest(request.getUserId())).getCart());
     }
 }

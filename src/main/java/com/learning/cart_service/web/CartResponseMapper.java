@@ -2,7 +2,7 @@ package com.learning.cart_service.web;
 
 import com.learning.cart_service.core.domain.CartLine;
 import com.learning.cart_service.core.domain.CartView;
-import com.learning.cart_service.core.usecase.MergeCartUsecase;
+import com.learning.cart_service.core.usecase.MergeCartEntryResult;
 import com.learning.cart_service.web.response.CartResponse;
 import com.learning.cart_service.web.response.MergeCartResponse;
 
@@ -18,9 +18,9 @@ final class CartResponseMapper {
                 view.totalQuantity(), view.subtotal(), view.currency(), view.checkoutReady());
     }
 
-    static MergeCartResponse toResponse(CartView view, List<MergeCartUsecase.EntryResult> results) {
+    static MergeCartResponse toResponse(CartView view, List<MergeCartEntryResult> results) {
         return new MergeCartResponse(toResponse(view), results.stream()
-                .map(r -> new MergeCartResponse.Result(r.productId(), r.merged(), r.errorCode(), r.message()))
+                .map(r -> new MergeCartResponse.Result(r.getProductId(), r.isMerged(), r.getErrorCode(), r.getMessage()))
                 .toList());
     }
 

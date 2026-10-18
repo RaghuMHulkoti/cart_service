@@ -1,13 +1,15 @@
 package com.learning.cart_service.core.usecase;
 
 import com.learning.cart_service.core.domain.CartItem;
+import com.learning.cart_service.core.service.cart.CartService;
+import com.learning.cart_service.core.service.cart.CartServiceRequest;
+import com.learning.cart_service.core.service.catalog.CatalogService;
+import com.learning.cart_service.core.service.catalog.CatalogServiceRequest;
 import com.learning.cart_service.core.domain.CartLine;
 import com.learning.cart_service.core.domain.CartView;
 import com.learning.cart_service.core.domain.LineAvailability;
 import com.learning.cart_service.core.domain.ProductInfo;
 import com.learning.cart_service.core.domain.ProductSnapshot;
-import com.learning.cart_service.core.service.CartService;
-import com.learning.cart_service.core.service.CatalogService;
 
 import java.math.BigDecimal;
 import java.util.Comparator;
@@ -20,13 +22,9 @@ import java.util.UUID;
  * customer sees {@code priceChanged} until they next change the line. A downstream outage degrades the
  * affected lines to UNKNOWN rather than failing the whole cart.
  */
-public class GetCartUsecase implements Usecase<GetCartUsecase.Request, GetCartUsecase.Response> {
+public class GetCartUsecase implements Usecase<GetCartUsecaseRequest, GetCartUsecaseResponse> {
 
-    public record Request(UUID userId) implements UsecaseRequest {
-    }
 
-    public record Response(CartView cart) implements UsecaseResponse {
-    }
 
     private final CartService cartService;
     private final CatalogService catalogService;
@@ -37,17 +35,26 @@ public class GetCartUsecase implements Usecase<GetCartUsecase.Request, GetCartUs
     }
 
     @Override
-    public Response execute(Request request) {
-        var items = cartService.items(request.userId()).stream()
+    public GetCartUsecaseResponse execute(GetCartUsecaseRequest request) {
+        var items = cartService.execute(CartServiceRequest.builder()
+                        .operation(CartServiceRequest.Operation.FIND_ALL)
+                        .userId(request.getUserId())
+                        .build()).getItems().stream()
                 .sorted(Comparator.comparing(CartItem::addedAt).thenComparing(CartItem::offerId))
                 .toList();
         if (items.isEmpty()) {
-            return new Response(new CartView(request.userId(), List.of(), 0, BigDecimal.ZERO, null, false));
+            return new GetCartUsecaseResponse(new CartView(request.getUserId(), List.of(), 0, BigDecimal.ZERO, null, false));
         }
 
         var productIds = items.stream().map(CartItem::productId).distinct().toList();
-        var products = catalogService.productsOrNull(productIds);
-        var snapshots = catalogService.snapshotsOrDegrade(productIds);
+        var products = catalogService.execute(CatalogServiceRequest.builder()
+                .operation(CatalogServiceRequest.Operation.PRODUCTS_OR_NULL)
+                .productIds(productIds)
+                .build()).getProducts();
+        var snapshots = catalogService.execute(CatalogServiceRequest.builder()
+                .operation(CatalogServiceRequest.Operation.SNAPSHOTS_OR_DEGRADE)
+                .productIds(productIds)
+                .build()).getSnapshots();
 
         var lines = items.stream()
                 .map(item -> buildLine(item, products, snapshots.get(item.productId())))
@@ -57,7 +64,7 @@ public class GetCartUsecase implements Usecase<GetCartUsecase.Request, GetCartUs
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         int totalQuantity = lines.stream().mapToInt(l -> l.item().quantity()).sum();
         boolean ready = lines.stream().allMatch(l -> l.availability() == LineAvailability.IN_STOCK);
-        return new Response(new CartView(request.userId(), lines, totalQuantity, subtotal,
+        return new GetCartUsecaseResponse(new CartView(request.getUserId(), lines, totalQuantity, subtotal,
                 items.getFirst().currency(), ready));
     }
 

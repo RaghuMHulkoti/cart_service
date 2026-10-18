@@ -1,18 +1,8 @@
 package com.learning.cart_service.core.processor;
 
-import com.learning.cart_service.core.domain.CartView;
-import com.learning.cart_service.core.usecase.GetCartUsecase;
-import com.learning.cart_service.core.usecase.RemoveCartItemUsecase;
+import com.learning.cart_service.core.usecase.*;
 
-import java.util.UUID;
-
-public class RemoveCartItemProcessor implements Processor<RemoveCartItemProcessor.Request, RemoveCartItemProcessor.Response> {
-
-    public record Request(UUID userId, UUID itemId) implements ProcessorRequest {
-    }
-
-    public record Response(CartView cart) implements ProcessorResponse {
-    }
+public class RemoveCartItemProcessor implements Processor<RemoveCartItemProcessorRequest, RemoveCartItemProcessorResponse> {
 
     private final RemoveCartItemUsecase removeCartItemUsecase;
     private final GetCartUsecase getCartUsecase;
@@ -23,8 +13,8 @@ public class RemoveCartItemProcessor implements Processor<RemoveCartItemProcesso
     }
 
     @Override
-    public Response process(Request request) {
-        removeCartItemUsecase.execute(new RemoveCartItemUsecase.Request(request.userId(), request.itemId()));
-        return new Response(getCartUsecase.execute(new GetCartUsecase.Request(request.userId())).cart());
+    public RemoveCartItemProcessorResponse process(RemoveCartItemProcessorRequest request) {
+        removeCartItemUsecase.execute(new RemoveCartItemUsecaseRequest(request.getUserId(), request.getItemId()));
+        return new RemoveCartItemProcessorResponse(getCartUsecase.execute(new GetCartUsecaseRequest(request.getUserId())).getCart());
     }
 }

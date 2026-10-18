@@ -4,6 +4,7 @@ import com.learning.cart_service.core.domain.CartView;
 import com.learning.cart_service.core.processor.AddCartItemProcessor;
 import com.learning.cart_service.core.processor.ClearCartProcessor;
 import com.learning.cart_service.core.processor.GetCartProcessor;
+import com.learning.cart_service.core.processor.GetCartProcessorResponse;
 import com.learning.cart_service.core.processor.MergeCartProcessor;
 import com.learning.cart_service.core.processor.RemoveCartItemProcessor;
 import com.learning.cart_service.core.processor.UpdateCartItemProcessor;
@@ -52,7 +53,7 @@ class CartControllerTest {
 
     @Test
     void getReturnsEnvelope() throws Exception {
-        when(getCart.process(any())).thenReturn(new GetCartProcessor.Response(
+        when(getCart.process(any())).thenReturn(new GetCartProcessorResponse(
                 new CartView(user, List.of(), 0, BigDecimal.ZERO, null, false)));
 
         mvc.perform(get("/api/v1/cart").header("X-User-Id", user.toString()))
