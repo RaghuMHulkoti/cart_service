@@ -18,7 +18,8 @@ import com.learning.cart_service.gateway.CartGateway;
 import com.learning.cart_service.gateway.CartPurgeJob;
 import com.learning.cart_service.gateway.InventoryGateway;
 import com.learning.cart_service.gateway.ProductGateway;
-import com.learning.cart_service.gateway.JdbcCartGateway;
+import com.learning.cart_service.gateway.CartItemRepository;
+import com.learning.cart_service.gateway.JpaCartGateway;
 import com.learning.cart_service.gateway.SupplierOfferGateway;
 import com.learning.cart_service.gateway.client.InventoryGatewayImpl;
 import com.learning.cart_service.gateway.client.ProductGatewayImpl;
@@ -28,7 +29,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -136,12 +136,12 @@ public class AppConfig {
     // =========================================================================
 
     @Bean
-    public JdbcCartGateway cartGateway(JdbcTemplate jdbcTemplate, PlatformTransactionManager transactionManager) {
-        return new JdbcCartGateway(jdbcTemplate, new TransactionTemplate(transactionManager));
+    public JpaCartGateway cartGateway(CartItemRepository repository, PlatformTransactionManager transactionManager) {
+        return new JpaCartGateway(repository, new TransactionTemplate(transactionManager));
     }
 
     @Bean
-    public CartPurgeJob cartPurgeJob(JdbcCartGateway gateway, CartProperties properties, Clock clock) {
+    public CartPurgeJob cartPurgeJob(JpaCartGateway gateway, CartProperties properties, Clock clock) {
         return new CartPurgeJob(gateway, properties, clock);
     }
 

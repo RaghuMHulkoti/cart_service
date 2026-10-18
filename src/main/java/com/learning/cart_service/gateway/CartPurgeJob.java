@@ -12,11 +12,11 @@ public class CartPurgeJob {
 
     private static final Logger log = LoggerFactory.getLogger(CartPurgeJob.class);
 
-    private final JdbcCartGateway gateway;
+    private final JpaCartGateway gateway;
     private final CartProperties properties;
     private final Clock clock;
 
-    public CartPurgeJob(JdbcCartGateway gateway, CartProperties properties, Clock clock) {
+    public CartPurgeJob(JpaCartGateway gateway, CartProperties properties, Clock clock) {
         this.gateway = gateway;
         this.properties = properties;
         this.clock = clock;

@@ -2,14 +2,9 @@ package com.learning.cart_service.gateway;
 
 import com.learning.cart_service.core.domain.CartItem;
 import com.learning.cart_service.exception.BusinessRuleViolationException;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
-import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -21,22 +16,28 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Runs the real migration and gateway SQL against H2 in Oracle mode. It catches schema and MERGE mistakes
- * but is not a substitute for a run against Oracle itself.
+ * Runs the real migration, entity mapping and repository queries against H2 in Oracle mode. It catches schema and
+ * mapping mistakes but is not a substitute for a run against Oracle itself.
  */
-class JdbcCartGatewayTest {
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:h2:mem:cartgw;MODE=Oracle",
+        "spring.datasource.username=sa",
+        "spring.datasource.password=",
+        "spring.datasource.driver-class-name=org.h2.Driver",
+        "spring.datasource.hikari.connection-test-query=SELECT 1",
+        "spring.datasource.hikari.connection-init-sql=SELECT 1",
+        "spring.flyway.enabled=false",
+        "spring.sql.init.mode=always",
+        "spring.sql.init.schema-locations=classpath:db/migration/V1__create_cart_schema.sql"
+})
+class JpaCartGatewayTest {
 
     final UUID user = UUID.randomUUID();
     final UUID product = UUID.randomUUID();
     final UUID supplier = UUID.randomUUID();
-    JdbcCartGateway gateway;
 
-    @BeforeEach
-    void setUp() {
-        var ds = new DriverManagerDataSource("jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=Oracle;DB_CLOSE_DELAY=-1", "sa", "");
-        new ResourceDatabasePopulator(new ClassPathResource("db/migration/V1__create_cart_schema.sql")).execute(ds);
-        gateway = new JdbcCartGateway(new JdbcTemplate(ds), new TransactionTemplate(new DataSourceTransactionManager(ds)));
-    }
+    @Autowired
+    JpaCartGateway gateway;
 
     @Test
     void saveThenReadBack() {
