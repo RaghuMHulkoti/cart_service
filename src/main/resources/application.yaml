@@ -70,7 +70,7 @@ management:
       export:
         enabled: true
         # Pushes the same Micrometer metrics the Prometheus endpoint serves, so Grafana Cloud needs no scraper.
-        # Auth: set MANAGEMENT_OTLP_METRICS_EXPORT_HEADERS_AUTHORIZATION="Basic <base64 instanceId:token>".
+        # Auth headers come from OTEL_EXPORTER_OTLP_HEADERS; only active while OTEL_METRICS_EXPORTER=otlp.
         url: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/metrics
         step: 30s
         base-time-unit: seconds
@@ -102,3 +102,7 @@ management:
       enabled: true
     readinessstate:
       enabled: true
+
+# Browser origins allowed to call this API (comma separated, e.g. the test console). Empty = none.
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:}
