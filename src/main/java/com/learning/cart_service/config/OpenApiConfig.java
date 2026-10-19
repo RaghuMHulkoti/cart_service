@@ -12,7 +12,7 @@ public class OpenApiConfig {
     public OpenAPI cartServiceOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Cart Service API")
+                        .title("ShopTrail Cart Service API")
                         .description("Pre-order assembly. Carts live in Oracle (schema CART). Price and stock are never owned here: "
                                 + "they are read live from Supplier Service offers and Inventory Service. "
                                 + "The caller identity arrives in the X-User-Id header set by the API gateway.")
