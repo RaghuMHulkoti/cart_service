@@ -136,3 +136,7 @@ None. Cart is synchronous only.
 
 - Trusts `X-User-Id`; no JWT check yet.
 - No price-change notice when an offer's price changes after adding.
+
+## License
+
+Copyright (c) 2026 Raghavendra. All rights reserved. The code is published for viewing only; copying or reuse requires written permission. See [LICENSE](LICENSE).
