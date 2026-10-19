@@ -2,7 +2,7 @@
 
 Shopping carts for ShopTrail, priced from supplier offers and checked against stock.
 
-Part of **ShopTrail**, a multi-seller marketplace. Full system reference: [`marketplace_tdd.md`](https://github.com/RaghuMHulkoti/inventory-manager/blob/main/marketplace_tdd.md).
+Part of **ShopTrail**, a multi-seller marketplace. Full system reference: [`marketplace_tdd.md`](https://github.com/RaghuMHulkoti/shoptrail/blob/main/docs/marketplace_tdd.md).
 
 | | |
 |---|---|
@@ -88,7 +88,7 @@ Responses are wrapped as `{"status", "message", "body"}`. Every call needs `X-Us
 
 ## Data model
 
-Schema `CART`. Full columns and constraints: [section 8 of the reference](https://github.com/RaghuMHulkoti/inventory-manager/blob/main/marketplace_tdd.md#8-data-model).
+Schema `CART`. Full columns and constraints: [section 8 of the reference](https://github.com/RaghuMHulkoti/shoptrail/blob/main/docs/marketplace_tdd.md#8-data-model).
 
 ```mermaid
 erDiagram
