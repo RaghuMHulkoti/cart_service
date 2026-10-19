@@ -4,7 +4,7 @@ spring:
   datasource:
     url: jdbc:oracle:thin:@ecommerce_tp?TNS_ADMIN=${WALLET_DIR:/Users/raghavendra/Downloads/Wallet_ECOMMERCE}
     username: ${DB_USERNAME:ADMIN}
-    password: ${DB_PASSWORD:"@2ztrn322hyR"}
+    password: ${DB_PASSWORD}
     driver-class-name: oracle.jdbc.OracleDriver
     hikari:
       connection-test-query: SELECT 1 FROM DUAL
